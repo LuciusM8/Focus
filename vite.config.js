@@ -12,28 +12,32 @@ export default defineConfig({
       devOptions: {
         enabled: true,
       },
-      manifest: {
-        name: "Orvyn",
-        short_name: "Orvyn",
-        description: "Todo tiene su órbita: hábitos, tareas y finanzas en un solo lugar.",
-        theme_color: "#070A12",
-        background_color: "#070A12",
-        display: "standalone",
-        start_url: "/",
-        scope: "/",
-        icons: [
-          {
-            src: "/icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-        ],
-      },
+     manifest: {
+ 	name: "Orvyn",
+ 	short_name: "Orvyn",
+	description: "Todo tiene su órbita",
+	theme_color: "#061126",
+  	background_color: "#061126",
+  	display: "standalone",
+  	icons: [
+   	{
+      src: "/pwa-192x192.png",
+      sizes: "192x192",
+      type: "image/png"
+    },
+    {
+      src: "/pwa-512x512.png",
+      sizes: "512x512",
+      type: "image/png"
+    },
+    {
+      src: "/pwa-512x512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any maskable"
+    }
+  ]
+}
     }),
   ],
 });
