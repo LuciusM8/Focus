@@ -21,6 +21,105 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
+const getMonthKey = (date = new Date()) => date.toISOString().slice(0, 7);
+const formatMonthLabel = (monthKey) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+};
+
+const getMonthName = (monthKey = getMonthKey()) => formatMonthLabel(monthKey);
+const getWeekKey = (date = new Date()) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const mondayDiff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + mondayDiff);
+  return d.toISOString().slice(0, 10);
+};
+
+function getWeekDates(baseDate = new Date()) {
+  const now = new Date(baseDate);
+  const day = now.getDay();
+  const mondayDiff = day === 0 ? -6 : 1 - day;
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() + mondayDiff + index);
+    return {
+      label: weekDays[index],
+      key: d.toISOString().slice(0, 10),
+      dayNumber: d.getDate(),
+    };
+  });
+}
+
+function getBibleProgress(plan = []) {
+  const total = plan.length;
+  const completed = plan.filter((day) => day.completed).length;
+  const percent = total ? Math.round((completed / total) * 100) : 0;
+  return { total, completed, percent };
+}
+
+function getCurrentBibleDay(plan = []) {
+  return plan.find((day) => !day.completed) || plan[plan.length - 1] || null;
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0);
+}
+
+function getFinanceByCategory(transactions = []) {
+  return Object.values(
+    transactions
+      .filter((transaction) => transaction.type === "Gasto")
+      .reduce((acc, transaction) => {
+        const category = transaction.category || "Otros";
+        acc[category] = acc[category] || { category, amount: 0 };
+        acc[category].amount += Number(transaction.amount || 0);
+        return acc;
+      }, {})
+  );
+}
+
+function getHeatmapDays(total = 35, baseDate = new Date()) {
+  const days = [];
+  const now = new Date(baseDate);
+
+  for (let i = total - 1; i >= 0; i -= 1) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+
+  return days;
+}
+
+function normalizeHabitName(name) {
+  return String(name || "").trim().toLowerCase();
+}
+
+function dedupeHabitRows(rows = []) {
+  const seen = new Set();
+  const unique = [];
+  const duplicates = [];
+
+  rows.forEach((row) => {
+    const key = normalizeHabitName(row.name);
+    if (!key) return;
+
+    if (seen.has(key)) {
+      duplicates.push(row);
+    } else {
+      seen.add(key);
+      unique.push(row);
+    }
+  });
+
+  return { unique, duplicates };
+}
 const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 const iconMap = {
@@ -42,6 +141,8 @@ const iconMap = {
   target: "◎",
   timer: "◷",
   wallet: "$",
+  menu: "☰",
+  planet: "◉",
 };
 
 function Icon({ name, size = 20, className = "" }) {
@@ -99,201 +200,169 @@ function OrbitalBackground() {
   );
 }
 
-const starterHabits = [
-  { name: "Levantarse a las 6", icon: "🌅", target: "Lun a vie", weekly_goal: 5 },
-  { name: "Gym", icon: "🏋️", target: "3x por semana", weekly_goal: 3 },
-  { name: "Leer / estudiar", icon: "📚", target: "30 min diarios", weekly_goal: 5 },
-  { name: "Devocional", icon: "🙏", target: "Diario", weekly_goal: 7 },
-  { name: "Menos redes", icon: "📵", target: "Máx. 1h 30m", weekly_goal: 5 },
-];
+function getStablePlanetColor(planet, index = 0) {
+  const allowed = ["orange", "violet", "blue"];
+  if (allowed.includes(planet?.color)) return planet.color;
 
-const defaultBiblePlan = [
-  {
-    day: 1,
-    title: "Dios crea y ordena",
-    reading: "Génesis 1–2",
-    focus: "Empezar mirando a Dios como Creador, fuente de orden, propósito y descanso.",
-  },
-  {
-    day: 2,
-    title: "Caída y promesa",
-    reading: "Génesis 3; Romanos 5:12–21",
-    focus: "Ver la necesidad humana y la promesa de restauración que apunta a Cristo.",
-  },
-  {
-    day: 3,
-    title: "Fe y obediencia",
-    reading: "Génesis 12; Hebreos 11:8–16",
-    focus: "Aprender de Abraham: caminar por fe incluso cuando no está todo claro.",
-  },
-  {
-    day: 4,
-    title: "Dios libera",
-    reading: "Éxodo 3; Éxodo 14",
-    focus: "Recordar que Dios escucha, llama, guía y abre camino donde parece imposible.",
-  },
-  {
-    day: 5,
-    title: "Corazón y adoración",
-    reading: "Salmo 23; Salmo 51",
-    focus: "Orar con honestidad: confianza, arrepentimiento y dependencia de Dios.",
-  },
-  {
-    day: 6,
-    title: "Sabiduría diaria",
-    reading: "Proverbios 3; Santiago 1",
-    focus: "Buscar sabiduría práctica para decisiones, hábitos, palabras y prioridades.",
-  },
-  {
-    day: 7,
-    title: "Jesús, el centro",
-    reading: "Juan 1; Colosenses 1:15–23",
-    focus: "Contemplar quién es Cristo y por qué todo encuentra sentido en Él.",
-  },
-  {
-    day: 8,
-    title: "El Sermón del Monte",
-    reading: "Mateo 5",
-    focus: "Revisar el carácter del Reino: humildad, pureza, misericordia y luz.",
-  },
-  {
-    day: 9,
-    title: "Oración y confianza",
-    reading: "Mateo 6",
-    focus: "Ordenar deseos, ansiedad y prioridades delante del Padre.",
-  },
-  {
-    day: 10,
-    title: "Amar como Jesús",
-    reading: "Lucas 10:25–42; Juan 13:1–17",
-    focus: "Pasar de la intención al servicio concreto y humilde.",
-  },
-  {
-    day: 11,
-    title: "Gracia y salvación",
-    reading: "Efesios 2; Tito 3:3–8",
-    focus: "Descansar en la gracia: no ganamos el amor de Dios, respondemos a él.",
-  },
-  {
-    day: 12,
-    title: "Vida en el Espíritu",
-    reading: "Romanos 8; Gálatas 5:16–26",
-    focus: "Identificar qué fruto necesita crecer más en esta etapa.",
-  },
-  {
-    day: 13,
-    title: "Disciplina y perseverancia",
-    reading: "Hebreos 12:1–13; 1 Corintios 9:24–27",
-    focus: "Conectar fe, constancia y entrenamiento espiritual.",
-  },
-  {
-    day: 14,
-    title: "Esperanza final",
-    reading: "Apocalipsis 21–22",
-    focus: "Terminar mirando la esperanza: Dios restaura todas las cosas.",
-  },
-];
+  const source = `${planet?.id || planet?.source_key || planet?.label || "planet"}`;
+  const hash = source.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return allowed[(hash + index) % allowed.length];
+}
 
-function createPsalmsPlan() {
-  return Array.from({ length: 30 }, (_, index) => {
-    const start = index * 5 + 1;
-    const end = Math.min(start + 4, 150);
+function OrbitSystem({ planets = [], moons = [], compact = false, sunColor = "emerald" }) {
+  const visiblePlanets = planets.slice(0, compact ? 5 : 10);
+  const visibleMoons = moons.slice(0, compact ? 10 : 20);
+
+  const planetLayouts = visiblePlanets.map((planet, index) => {
+    const radiusX = compact ? 80 + index * 24 : 120 + index * 42;
+    const radiusY = compact ? 48 + index * 14 : 72 + index * 24;
+
     return {
-      day: index + 1,
-      title: `Salmos ${start}–${end}`,
-      reading: start === end ? `Salmo ${start}` : `Salmos ${start}–${end}`,
-      focus: "Leer despacio: adoración, honestidad, confianza, arrepentimiento y esperanza delante de Dios.",
+      planet,
+      radiusX,
+      radiusY,
+      tilt: index % 2 === 0 ? -12 : 12,
+      speed: compact ? 14 + index * 2 : 18 + index * 4,
+      size: compact ? 14 + (index % 3) * 3 : 20 + (index % 3) * 4,
+      reverse: index % 2 === 1,
     };
   });
-}
 
-function reindexBiblePlan(plan) {
-  return plan.map((item, index) => ({ ...item, day: index + 1 }));
-}
+  const visiblePlanetIds = new Set(visiblePlanets.map((planet) => planet.id));
+  const sunClass =
+    sunColor === "orange"
+      ? "bg-orange-300 shadow-[0_0_48px_rgba(251,146,60,0.62)]"
+      : sunColor === "red"
+        ? "bg-red-300 shadow-[0_0_48px_rgba(252,165,165,0.62)]"
+        : sunColor === "white"
+          ? "bg-white shadow-[0_0_54px_rgba(255,255,255,0.74)]"
+          : "bg-emerald-300 shadow-[0_0_48px_rgba(52,211,153,0.62)]";
 
-function normalizeHabitName(name) {
-  return String(name || "").trim().toLowerCase();
-}
+  const normalizedMoons = visibleMoons.map((moon, index) => {
+    const rawParentId = moon.metadata?.parent_planet_id;
+    const fallbackPlanetId = visiblePlanets.length ? visiblePlanets[index % visiblePlanets.length].id : null;
 
-function dedupeHabitRows(rows = []) {
-  const seen = new Set();
-  const unique = [];
-  const duplicates = [];
-
-  rows.forEach((row) => {
-    const key = normalizeHabitName(row.name);
-    if (!key) return;
-
-    if (seen.has(key)) {
-      duplicates.push(row);
-    } else {
-      seen.add(key);
-      unique.push(row);
-    }
-  });
-
-  return { unique, duplicates };
-}
-
-function formatMoney(value) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(Number(value) || 0);
-}
-
-function getWeekDates(baseDate = new Date()) {
-  const now = new Date(baseDate);
-  const day = now.getDay();
-  const mondayDiff = day === 0 ? -6 : 1 - day;
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const d = new Date(now);
-    d.setDate(now.getDate() + mondayDiff + index);
     return {
-      label: weekDays[index],
-      key: d.toISOString().slice(0, 10),
-      dayNumber: d.getDate(),
+      ...moon,
+      resolvedPlanetId: visiblePlanetIds.has(rawParentId) ? rawParentId : fallbackPlanetId,
     };
   });
-}
 
-function getHeatmapDays(total = 35, baseDate = new Date()) {
-  const days = [];
-  const now = new Date(baseDate);
+  const moonsWithoutPlanet = normalizedMoons.filter((moon) => !moon.resolvedPlanetId);
 
-  for (let i = total - 1; i >= 0; i -= 1) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
-  }
+  return (
+    <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/40 ${compact ? "h-64" : "min-h-[34rem]"}`}>
+      <style>{`
+        @keyframes orvyn-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes orvyn-spin-reverse {
+          from { transform: rotate(360deg); }
+          to { transform: rotate(0deg); }
+        }
+        .orvyn-orbit-spin {
+          animation: orvyn-spin var(--orbit-speed, 18s) linear infinite;
+        }
+        .orvyn-orbit-spin-reverse {
+          animation: orvyn-spin-reverse var(--orbit-speed, 18s) linear infinite;
+        }
+      `}</style>
 
-  return days;
-}
+      <div className={`absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full ${sunClass}`} />
+      <div className="absolute left-1/2 top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/60 blur-sm" />
 
-function getFinanceByCategory(transactions) {
-  return Object.values(
-    transactions
-      .filter((t) => t.type === "Gasto")
-      .reduce((acc, t) => {
-        const category = t.category || "Otros";
-        acc[category] = acc[category] || { category, amount: 0 };
-        acc[category].amount += Number(t.amount || 0);
-        return acc;
-      }, {})
+
+      {planetLayouts.map((layout) => {
+        const planetColor = getStablePlanetColor(layout.planet, planetLayouts.findIndex((item) => item.planet.id === layout.planet.id));
+        const colorClass =
+          planetColor === "orange"
+            ? "bg-orange-300 shadow-[0_0_28px_rgba(251,146,60,0.75)]"
+            : planetColor === "blue"
+              ? "bg-blue-300 shadow-[0_0_28px_rgba(96,165,250,0.75)]"
+              : "bg-violet-300 shadow-[0_0_28px_rgba(167,139,250,0.75)]";
+
+        const moonsForPlanet = normalizedMoons.filter((moon) => moon.resolvedPlanetId === layout.planet.id);
+
+        return (
+          <div
+            key={layout.planet.id}
+            className={`absolute left-1/2 top-1/2 ${layout.reverse ? "orvyn-orbit-spin-reverse" : "orvyn-orbit-spin"}`}
+            style={{
+              width: layout.radiusX * 2,
+              height: layout.radiusY * 2,
+              marginLeft: -layout.radiusX,
+              marginTop: -layout.radiusY,
+              transformOrigin: "50% 50%",
+              transform: `rotate(${layout.tilt}deg)`,
+              "--orbit-speed": `${layout.speed}s`,
+            }}
+          >
+            <div
+              title={layout.planet.metadata?.habitName || layout.planet.label}
+              className={`absolute left-1/2 top-0 rounded-full ${colorClass}`}
+              style={{
+                width: layout.size,
+                height: layout.size,
+                marginLeft: -layout.size / 2,
+              }}
+            >
+              {moonsForPlanet.map((moon, moonIndex) => {
+                const moonOrbit = layout.size * 1.8 + moonIndex * 10;
+                const moonSize = compact ? 5 : 6;
+
+                return (
+                  <div
+                    key={moon.id}
+                    className="orvyn-orbit-spin absolute left-1/2 top-1/2 rounded-full border border-blue-100/15"
+                    style={{
+                      width: moonOrbit * 2,
+                      height: moonOrbit * 2,
+                      marginLeft: -moonOrbit,
+                      marginTop: -moonOrbit,
+                      "--orbit-speed": `${6 + moonIndex * 2}s`,
+                    }}
+                  >
+                    <div
+                      className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full bg-blue-100 shadow-[0_0_16px_rgba(191,219,254,0.95)]"
+                      style={{ width: moonSize, height: moonSize }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {moonsWithoutPlanet.map((moon, index) => {
+        const radiusX = compact ? 76 + index * 18 : 110 + index * 24;
+        const radiusY = compact ? 44 + index * 12 : 66 + index * 16;
+
+        return (
+          <div
+            key={moon.id}
+            className="orvyn-orbit-spin absolute left-1/2 top-1/2"
+            style={{
+              width: radiusX * 2,
+              height: radiusY * 2,
+              marginLeft: -radiusX,
+              marginTop: -radiusY,
+              "--orbit-speed": `${10 + index * 2}s`,
+            }}
+          >
+            <div className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-blue-100 shadow-[0_0_16px_rgba(191,219,254,0.95)]" />
+          </div>
+        );
+      })}
+
+      {visiblePlanets.length === 0 && visibleMoons.length === 0 && (
+        <div className="absolute inset-x-6 bottom-6 rounded-[1.5rem] border border-white/10 bg-[#070A12]/70 p-4 text-center text-sm text-slate-400 backdrop-blur">
+          Cumplí objetivos semanales para atraer planetas y completá sesiones de enfoque para sumar lunas.
+        </div>
+      )}
+    </div>
   );
-}
-
-function getBibleProgress(plan) {
-  const total = plan.length;
-  const completed = plan.filter((day) => day.completed).length;
-  const percent = total ? Math.round((completed / total) * 100) : 0;
-  return { total, completed, percent };
-}
-
-function getCurrentBibleDay(plan) {
-  return plan.find((day) => !day.completed) || plan[plan.length - 1] || null;
 }
 
 function Card({ children, className = "" }) {
@@ -556,7 +625,23 @@ export default function SistemaEnfoqueApp() {
   const [financeForm, setFinanceForm] = useState({ type: "Gasto", category: "Comida", description: "", amount: "" });
   const [bibleForm, setBibleForm] = useState({ title: "", reading: "", focus: "" });
   const [habitForm, setHabitForm] = useState({ name: "", icon: "✅", target: "", weeklyGoal: 1 });
+  const [showHabitCreator, setShowHabitCreator] = useState(false);
+  const [showFinanceCreator, setShowFinanceCreator] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [sunColor, setSunColor] = useState(() => window.localStorage.getItem("orvyn-sun-color") || "orange");
+  const [focusMinutes, setFocusMinutes] = useState(25);
+  const [focusSecondsLeft, setFocusSecondsLeft] = useState(0);
+  const [focusActive, setFocusActive] = useState(false);
+  const [focusFailed, setFocusFailed] = useState(false);
+  const [focusSessionId, setFocusSessionId] = useState(null);
+  const [orbitRewards, setOrbitRewards] = useState([]);
+  const [selectedOrbitMonth, setSelectedOrbitMonth] = useState(getMonthKey());
   const [appError, setAppError] = useState("");
+
+  const updateSunColor = (color) => {
+    setSunColor(color);
+    window.localStorage.setItem("orvyn-sun-color", color);
+  };
 
   const user = session?.user;
   const weekDates = useMemo(() => getWeekDates(), []);
@@ -699,6 +784,14 @@ export default function SistemaEnfoqueApp() {
         .order("day", { ascending: true });
       if (readingError) throw readingError;
       setBiblePlan(readingRows || []);
+
+      const { data: rewardRows, error: rewardError } = await supabase
+        .from("orbit_rewards")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false });
+      if (rewardError) throw rewardError;
+      setOrbitRewards(rewardRows || []);
     } catch (error) {
       setAppError(error.message || "No se pudieron cargar los datos.");
     } finally {
@@ -722,6 +815,7 @@ export default function SistemaEnfoqueApp() {
       setTransactions([]);
       setBiblePlan([]);
       setBiblePlanId(null);
+      setOrbitRewards([]);
     }
   }, [user?.id]);
 
@@ -812,6 +906,7 @@ export default function SistemaEnfoqueApp() {
       },
     ]);
     setHabitForm({ name: "", icon: "✅", target: "", weeklyGoal: 1 });
+    setShowHabitCreator(false);
   };
 
   const updateHabitField = (habitId, field, value) => {
@@ -890,6 +985,7 @@ export default function SistemaEnfoqueApp() {
     if (error) return setAppError(error.message);
     setTransactions((prev) => [data, ...prev]);
     setFinanceForm({ type: "Gasto", category: "Comida", description: "", amount: "" });
+    setShowFinanceCreator(false);
   };
 
   const clearFinances = async () => {
@@ -1021,7 +1117,138 @@ export default function SistemaEnfoqueApp() {
     })[0];
   }, [habits, weekDates]);
 
+  const weeklyPlanets = orbitRewards.filter((reward) => reward.type === "planet" && reward.month_key === selectedOrbitMonth);
+  const selectedMonthRewards = orbitRewards.filter((reward) => reward.month_key === selectedOrbitMonth);
+  const selectedMonthPlanets = selectedMonthRewards.filter((reward) => reward.type === "planet");
+  const selectedMonthMoons = selectedMonthRewards.filter((reward) => reward.type === "moon");
+  const availableOrbitMonths = Array.from(new Set([getMonthKey(), ...orbitRewards.map((reward) => reward.month_key)])).sort().reverse();
+
   const categories = ["Comida", "Transporte", "Ocio", "Salud", "Estudio", "Iglesia", "Ahorro", "Trabajo", "Otros"];
+
+  useEffect(() => {
+    if (!user || !habits.length) return;
+
+    const currentWeekKey = getWeekKey();
+    const currentMonthKey = getMonthKey();
+
+    habits.forEach((habit) => {
+      const completed = weekDates.reduce((sum, d) => sum + (habit.history?.[d.key] ? 1 : 0), 0);
+      const goal = Number(habit.weeklyGoal || 0);
+      const sourceKey = `habit-${habit.id}-${currentWeekKey}`;
+      const existingReward = orbitRewards.find((reward) => reward.source_key === sourceKey);
+
+      if (goal > 0 && completed >= goal && !existingReward) {
+        const reward = {
+          user_id: user.id,
+          type: "planet",
+          label: `Planeta de ${habit.name}`,
+          source_key: sourceKey,
+          month_key: currentMonthKey,
+          week_key: currentWeekKey,
+          habit_id: habit.id,
+          metadata: { habitName: habit.name, icon: habit.icon, completed, goal },
+          color: ["orange", "violet", "blue"][Math.floor(Math.random() * 3)],
+        };
+
+        supabase
+          .from("orbit_rewards")
+          .upsert(reward, { onConflict: "user_id,source_key" })
+          .select()
+          .single()
+          .then(({ data, error }) => {
+            if (error) setAppError(error.message);
+            if (data) setOrbitRewards((prev) => (prev.some((item) => item.id === data.id) ? prev : [data, ...prev]));
+          });
+      }
+
+      if (existingReward && completed < goal) {
+        setOrbitRewards((prev) => prev.filter((reward) => reward.id !== existingReward.id));
+        supabase
+          .from("orbit_rewards")
+          .delete()
+          .eq("id", existingReward.id)
+          .eq("user_id", user.id)
+          .then(({ error }) => {
+            if (error) setAppError(error.message);
+          });
+      }
+    });
+  }, [habits, orbitRewards, user?.id, weekDates]);
+
+  useEffect(() => {
+    if (!focusActive || focusFailed) return;
+
+    const interval = window.setInterval(() => {
+      setFocusSecondsLeft((seconds) => {
+        if (seconds <= 1) {
+          window.clearInterval(interval);
+          const currentMonthPlanets = orbitRewards.filter((item) => item.month_key === getMonthKey() && item.type === "planet");
+          const chosenPlanet = currentMonthPlanets.length
+            ? currentMonthPlanets[Math.floor(Math.random() * currentMonthPlanets.length)]
+            : null;
+
+          const reward = {
+            user_id: user.id,
+            type: "moon",
+            label: "Luna de enfoque",
+            source_key: `focus-${focusSessionId || crypto.randomUUID()}`,
+            month_key: getMonthKey(),
+            week_key: getWeekKey(),
+            metadata: { minutes: focusMinutes, parent_planet_id: chosenPlanet?.id || null },
+            color: "blue",
+          };
+
+          supabase
+            .from("orbit_rewards")
+            .upsert(reward, { onConflict: "user_id,source_key" })
+            .select()
+            .single()
+            .then(({ data, error }) => {
+              if (error && error.code !== "23505") setAppError(error.message);
+              if (data) setOrbitRewards((prev) => (prev.some((item) => item.id === data.id) ? prev : [data, ...prev]));
+            });
+
+          setFocusActive(false);
+          return 0;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [focusActive, focusFailed, focusMinutes, focusSessionId, orbitRewards, user?.id]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (focusActive && document.visibilityState === "hidden") {
+        setFocusFailed(true);
+        setFocusActive(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [focusActive]);
+
+  const startFocusSession = () => {
+    setFocusSessionId(crypto.randomUUID());
+    setFocusFailed(false);
+    setFocusSecondsLeft(Math.max(1, Number(focusMinutes) || 25) * 60);
+    setFocusActive(true);
+  };
+
+  const cancelFocusSession = () => {
+    setFocusActive(false);
+    setFocusFailed(false);
+    setFocusSessionId(null);
+    setFocusSecondsLeft(0);
+  };
+
+  const formatFocusTime = (totalSeconds) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  };
 
   if (authLoading) {
     return (
@@ -1043,7 +1270,7 @@ export default function SistemaEnfoqueApp() {
       <OrbitalBackground />
 
       <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col p-4 sm:p-6 lg:p-8">
-        <header className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-[#0F172A]/70 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
+        <header className="relative z-[100] mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-[#0F172A]/70 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <OrbitMark size={58} />
             <div>
@@ -1052,21 +1279,109 @@ export default function SistemaEnfoqueApp() {
             </div>
           </div>
 
-          <nav className="flex flex-wrap gap-2">
-            <NavButton active={activeTab === "inicio"} icon="home" label="Inicio" onClick={() => setActiveTab("inicio")} />
-            <NavButton active={activeTab === "habitos"} icon="check" label="Hábitos" onClick={() => setActiveTab("habitos")} />
-            {showBible && (
-              <NavButton active={activeTab === "biblia"} icon="book" label="Biblia" onClick={() => setActiveTab("biblia")} />
+          <div className="relative flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowMenu((prev) => !prev)}
+              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-white shadow-lg shadow-black/20 transition hover:bg-white/10"
+            >
+              <Icon name="menu" size={20} />
+              <span>Menú</span>
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-14 z-[9999] w-72 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0B1220]/95 p-2 shadow-2xl shadow-black/60 backdrop-blur-xl ring-1 ring-emerald-300/10">
+                <div className="p-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Navegación</div>
+
+                {[
+                  ["inicio", "home", "Inicio"],
+                  ["habitos", "check", "Hábitos"],
+                  ["tareas", "target", "Tareas"],
+                  ["finanzas", "wallet", "Finanzas"],
+                  ["enfoque", "planet", "Modo Enfoque"],
+                  ["orbita", "sparkles", "Órbita"],
+                ].map(([tab, icon, label]) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab);
+                      setShowMenu(false);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition ${
+                      activeTab === tab ? "bg-emerald-400 text-slate-950" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <Icon name={icon} size={18} />
+                    {label}
+                  </button>
+                ))}
+
+                {showBible && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("biblia");
+                      setShowMenu(false);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition ${
+                      activeTab === "biblia" ? "bg-emerald-400 text-slate-950" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <Icon name="book" size={18} />
+                    Biblia
+                  </button>
+                )}
+
+                <div className="my-2 h-px bg-white/10" />
+                <div className="p-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Ajustes</div>
+
+                <button
+                  type="button"
+                  onClick={toggleBibleModule}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  <span className="flex items-center gap-3">
+                    <Icon name="book" size={18} />
+                    Módulo Biblia
+                  </span>
+                  <span className={`rounded-full px-3 py-1 text-xs ${showBible ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-slate-400"}`}>
+                    {showBible ? "Activo" : "Off"}
+                  </span>
+                </button>
+
+                <div className="px-2 py-3">
+                  <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Color del sol</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      ["orange", "bg-orange-300"],
+                      ["red", "bg-red-300"],
+                      ["white", "bg-white"],
+                      ["emerald", "bg-emerald-300"],
+                    ].map(([color, bg]) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => updateSunColor(color)}
+                        className={`flex h-10 items-center justify-center rounded-2xl border transition ${sunColor === color ? "border-white/60 bg-white/10" : "border-white/10 bg-white/[0.03] hover:bg-white/10"}`}
+                      >
+                        <span className={`h-4 w-4 rounded-full ${bg} shadow-[0_0_16px_rgba(255,255,255,0.35)]`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-red-200 transition hover:bg-red-400/10 hover:text-red-100"
+                >
+                  <Icon name="close" size={18} />
+                  Salir
+                </button>
+              </div>
             )}
-            <NavButton active={activeTab === "tareas"} icon="target" label="Tareas" onClick={() => setActiveTab("tareas")} />
-            <NavButton active={activeTab === "finanzas"} icon="wallet" label="Finanzas" onClick={() => setActiveTab("finanzas")} />
-            <button type="button" onClick={toggleBibleModule} className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm font-bold text-slate-400 transition hover:border-white/10 hover:bg-white/10 hover:text-white">
-              {showBible ? "Ocultar Biblia" : "Activar Biblia"}
-            </button>
-            <button type="button" onClick={signOut} className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm font-bold text-slate-400 transition hover:border-white/10 hover:bg-white/10 hover:text-white">
-              Salir
-            </button>
-          </nav>
+          </div>
         </header>
 
         {appError && (
@@ -1121,6 +1436,18 @@ export default function SistemaEnfoqueApp() {
             </Card>
 
             <div className="grid gap-5 lg:col-span-7">
+              <Card>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-black text-white">Tu órbita de {formatMonthLabel(getMonthKey())}</h3>
+                  </div>
+                  <button type="button" onClick={() => setActiveTab("orbita")} className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-400/20">
+                    Ver órbita
+                  </button>
+                </div>
+                <OrbitSystem planets={selectedMonthPlanets} moons={selectedMonthMoons} compact sunColor={sunColor} />
+              </Card>
+
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard icon="flame" label="Semana" value={`${weekPercent}%`} hint={`${weekDone}/${weekGoal} objetivos cumplidos`} />
                 {showBible && <StatCard icon="book" label="Plan bíblico" value={`${biblePercent}%`} hint={`${bibleCompleted}/${bibleTotal} lecturas completas`} />}
@@ -1177,38 +1504,162 @@ export default function SistemaEnfoqueApp() {
           </motion.main>
         )}
 
+        {activeTab === "enfoque" && (
+          <motion.main initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-12">
+            <Card className="lg:col-span-10 lg:col-start-2 xl:col-span-8 xl:col-start-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold text-emerald-300">Modo Enfoque</p>
+                  <h2 className="mt-2 text-4xl font-black tracking-tight text-white">Cultivá tu órbita</h2>
+                </div>
+                <ProgressRing value={focusActive ? Math.round(((focusMinutes * 60 - focusSecondsLeft) / (focusMinutes * 60)) * 100) : 0} label="sesión" />
+              </div>
+
+              <div className="mt-8 rounded-[2rem] border border-white/10 bg-slate-950/40 p-8 text-center sm:p-10">
+                <div className={`mx-auto flex h-44 w-44 items-center justify-center rounded-full border ${focusFailed ? "border-red-300/30 bg-red-400/10" : focusActive ? "border-emerald-300/30 bg-emerald-400/10" : "border-white/10 bg-white/[0.03]"}`}>
+                  <div className={`h-24 w-24 rounded-full ${focusFailed ? "bg-red-300/60" : focusActive ? "bg-emerald-300 shadow-[0_0_35px_rgba(52,211,153,0.55)]" : "bg-slate-700"}`} />
+                </div>
+
+                <p className="mt-8 text-7xl font-black tracking-tight text-white sm:text-8xl">{formatFocusTime(focusSecondsLeft || focusMinutes * 60)}</p>
+                <p className="mt-2 text-sm text-slate-400">
+                  {focusFailed ? "Tu planeta se alejó porque saliste de Orvyn." : focusActive ? "No salgas de la app hasta completar la sesión." : "Elegí un tiempo, mantené el foco y atraé una luna a tu órbita."}
+                </p>
+
+                {!focusActive && (
+                  <div className="mt-6 grid gap-3 sm:grid-cols-4">
+                    {[15, 25, 45].map((minutes) => (
+                      <button
+                        key={minutes}
+                        type="button"
+                        onClick={() => setFocusMinutes(minutes)}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${focusMinutes === minutes ? "border-emerald-300/40 bg-emerald-400/15 text-emerald-200" : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/10"}`}
+                      >
+                        {minutes} min
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      min="1"
+                      value={focusMinutes}
+                      onChange={(e) => setFocusMinutes(Math.max(1, Number(e.target.value) || 1))}
+                      className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-center text-sm font-black text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50"
+                      placeholder="Min"
+                    />
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-center gap-3">
+                  {focusActive ? (
+                    <button type="button" onClick={cancelFocusSession} className="rounded-2xl border border-red-300/20 bg-red-400/10 px-5 py-3 text-sm font-black text-red-200 hover:bg-red-400/20">
+                      Cancelar sesión
+                    </button>
+                  ) : (
+                    <button type="button" onClick={startFocusSession} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-5 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
+                      Atraer luna
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+          </motion.main>
+        )}
+
+        {activeTab === "orbita" && (
+          <motion.main initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-12">
+            <Card className="lg:col-span-12">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-emerald-300">Tu sistema personal</p>
+                  <h2 className="mt-2 text-3xl font-black tracking-tight text-white">Tu órbita</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={selectedOrbitMonth}
+                    onChange={(e) => setSelectedOrbitMonth(e.target.value)}
+                    className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300/50"
+                  >
+                    {availableOrbitMonths.map((month) => (
+                      <option key={month} value={month}>{formatMonthLabel(month)}</option>
+                    ))}
+                  </select>
+                  <span className="rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-black text-emerald-300">{selectedMonthPlanets.length} planetas</span>
+                  <span className="rounded-full bg-blue-400/10 px-4 py-2 text-sm font-black text-blue-300">{selectedMonthMoons.length} lunas</span>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <OrbitSystem planets={selectedMonthPlanets} moons={selectedMonthMoons} sunColor={sunColor} />
+              </div>
+            </Card>
+
+            <Card className="lg:col-span-6">
+              <h3 className="text-xl font-black text-white">Planetas de hábitos</h3>
+              <div className="mt-4 space-y-3">
+                {selectedMonthPlanets.length === 0 && <p className="text-sm text-slate-400">Todavía no completaste objetivos semanales en este mes.</p>}
+                {selectedMonthPlanets.slice(0, 6).map((planet) => (
+                  <div key={planet.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    <span className="font-bold text-white">{planet.metadata?.icon || "🪐"} {planet.metadata?.habitName || planet.label}</span>
+                    <span className="text-sm text-emerald-300">{planet.metadata?.completed || 0}/{planet.metadata?.goal || 0}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="lg:col-span-6">
+              <h3 className="text-xl font-black text-white">Lunas de enfoque</h3>
+              <div className="mt-4 space-y-3">
+                {selectedMonthMoons.length === 0 && <p className="text-sm text-slate-400">Todavía no completaste sesiones de enfoque en este mes.</p>}
+                {selectedMonthMoons.map((moon) => (
+                  <div key={moon.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    <span className="font-bold text-white">Luna de enfoque</span>
+                    <span className="text-sm text-blue-300">{moon.metadata?.minutes || 0} min</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.main>
+        )}
+
         {activeTab === "habitos" && (
           <motion.main initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-2">
             <Card className="lg:col-span-2">
-              <h2 className="text-2xl font-black text-white">Editar hábitos</h2>
-              <div className="mt-5 grid gap-3 sm:grid-cols-[90px_1fr_1fr_130px_auto]">
-                <input value={habitForm.icon} onChange={(e) => setHabitForm((form) => ({ ...form, icon: e.target.value }))} placeholder="Icono" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
-                <input value={habitForm.name} onChange={(e) => setHabitForm((form) => ({ ...form, name: e.target.value }))} placeholder="Nombre del hábito" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
-                <input value={habitForm.target} onChange={(e) => setHabitForm((form) => ({ ...form, target: e.target.value }))} placeholder="Meta, ej: 3x por semana" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
-                <input type="number" min="1" value={habitForm.weeklyGoal} onChange={(e) => setHabitForm((form) => ({ ...form, weeklyGoal: e.target.value }))} placeholder="Meta semanal" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
-                <button type="button" onClick={addHabit} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
-                  Agregar
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-2xl font-black text-white">Hábitos</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowHabitCreator((prev) => !prev)}
+                  className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-400/20"
+                >
+                  {showHabitCreator ? "Cerrar" : "+ Nuevo hábito"}
                 </button>
               </div>
+
+              {showHabitCreator && (
+                <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-4">
+                  <h3 className="mb-4 text-lg font-black text-white">Crear hábito</h3>
+                  <div className="grid gap-3 sm:grid-cols-[90px_1fr_1fr_130px]">
+                    <input value={habitForm.icon} onChange={(e) => setHabitForm((form) => ({ ...form, icon: e.target.value }))} placeholder="Icono" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
+                    <input value={habitForm.name} onChange={(e) => setHabitForm((form) => ({ ...form, name: e.target.value }))} placeholder="Nombre del hábito" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
+                    <input value={habitForm.target} onChange={(e) => setHabitForm((form) => ({ ...form, target: e.target.value }))} placeholder="Meta, ej: 3x por semana" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
+                    <input type="number" min="1" value={habitForm.weeklyGoal} onChange={(e) => setHabitForm((form) => ({ ...form, weeklyGoal: e.target.value }))} placeholder="Meta semanal" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
+                  </div>
+                  <div className="mt-4 flex justify-end gap-3">
+                    <button type="button" onClick={() => setShowHabitCreator(false)} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-slate-300 transition hover:bg-white/10">
+                      Cancelar
+                    </button>
+                    <button type="button" onClick={addHabit} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
+                      Guardar hábito
+                    </button>
+                  </div>
+                </div>
+              )}
             </Card>
 
             {habits.map((habit) => (
               <HabitCard key={habit.id} habit={habit} weekDates={weekDates} toggleHabit={toggleHabit} updateHabitField={updateHabitField} saveHabitField={saveHabitField} deleteHabit={deleteHabit} />
             ))}
-            <Card className="lg:col-span-2">
-              <h3 className="text-lg font-black text-white">Modo enfoque sugerido</h3>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {["25 min", "45 min", "90 min"].map((time) => (
-                  <button key={time} type="button" className="flex items-center justify-between rounded-3xl border border-white/10 bg-slate-950/40 p-4 hover:bg-white/10">
-                    <span className="flex items-center gap-3 font-bold text-white">
-                      <Icon name="timer" className="text-emerald-300" /> {time}
-                    </span>
-                    <Icon name="chevron" className="text-slate-500" />
-                  </button>
-                ))}
-              </div>
-            </Card>
-          </motion.main>
+            </motion.main>
         )}
 
         {showBible && activeTab === "biblia" && (
@@ -1392,24 +1843,45 @@ export default function SistemaEnfoqueApp() {
             </div>
 
             <Card className="lg:col-span-5">
-              <h2 className="text-2xl font-black text-white">Cargar movimiento</h2>
-              <div className="mt-5 grid gap-3">
-                <select value={financeForm.type} onChange={(e) => setFinanceForm((f) => ({ ...f, type: e.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none">
-                  <option>Gasto</option>
-                  <option>Ingreso</option>
-                </select>
-                <select value={financeForm.category} onChange={(e) => setFinanceForm((f) => ({ ...f, category: e.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none">
-                  {categories.map((cat) => <option key={cat}>{cat}</option>)}
-                </select>
-                <input value={financeForm.description} onChange={(e) => setFinanceForm((f) => ({ ...f, description: e.target.value }))} placeholder="Descripción" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" />
-                <input value={financeForm.amount} onChange={(e) => setFinanceForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Monto" type="number" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" />
-                <button type="button" onClick={addTransaction} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
-                  Agregar movimiento
-                </button>
-                <button type="button" onClick={clearFinances} className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/10">
-                  Borrar movimientos
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-2xl font-black text-white">Movimientos</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowFinanceCreator((prev) => !prev)}
+                  className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-400/20"
+                >
+                  {showFinanceCreator ? "Cerrar" : "+ Nuevo movimiento"}
                 </button>
               </div>
+
+              {showFinanceCreator && (
+                <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-4">
+                  <h3 className="mb-4 text-lg font-black text-white">Cargar movimiento</h3>
+                  <div className="grid gap-3">
+                    <select value={financeForm.type} onChange={(e) => setFinanceForm((f) => ({ ...f, type: e.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none">
+                      <option>Gasto</option>
+                      <option>Ingreso</option>
+                    </select>
+                    <select value={financeForm.category} onChange={(e) => setFinanceForm((f) => ({ ...f, category: e.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none">
+                      {categories.map((cat) => <option key={cat}>{cat}</option>)}
+                    </select>
+                    <input value={financeForm.description} onChange={(e) => setFinanceForm((f) => ({ ...f, description: e.target.value }))} placeholder="Descripción" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" />
+                    <input value={financeForm.amount} onChange={(e) => setFinanceForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Monto" type="number" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" />
+                    <div className="flex justify-end gap-3">
+                      <button type="button" onClick={() => setShowFinanceCreator(false)} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-slate-300 transition hover:bg-white/10">
+                        Cancelar
+                      </button>
+                      <button type="button" onClick={addTransaction} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
+                        Guardar movimiento
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button type="button" onClick={clearFinances} className="mt-4 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/10">
+                Borrar movimientos
+              </button>
             </Card>
 
             <Card className="lg:col-span-7">
