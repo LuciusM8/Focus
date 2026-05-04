@@ -56,6 +56,49 @@ function Icon({ name, size = 20, className = "" }) {
   );
 }
 
+function OrbitMark({ size = 56, className = "" }) {
+  return (
+    <div className={`relative shrink-0 ${className}`} style={{ width: size, height: size }}>
+      <div className="absolute inset-0 rounded-full bg-emerald-400/20 blur-xl" />
+      <svg viewBox="0 0 120 120" className="relative h-full w-full overflow-visible drop-shadow-[0_0_18px_rgba(52,211,153,0.45)]">
+        <defs>
+          <linearGradient id="orvynOrbit" x1="16" y1="18" x2="104" y2="102" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#34D399" />
+            <stop offset="0.52" stopColor="#60A5FA" />
+            <stop offset="1" stopColor="#A78BFA" />
+          </linearGradient>
+          <radialGradient id="orvynCore" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stopColor="#A7F3D0" />
+            <stop offset="1" stopColor="#34D399" />
+          </radialGradient>
+        </defs>
+        <circle cx="60" cy="60" r="17" fill="url(#orvynCore)" />
+        <circle cx="60" cy="60" r="43" fill="none" stroke="rgba(148,163,184,0.34)" strokeWidth="1.5" strokeDasharray="3 6" />
+        <path d="M25 77 A42 42 0 1 1 96 42" fill="none" stroke="url(#orvynOrbit)" strokeWidth="12" strokeLinecap="round" />
+        <path d="M31 86 A49 49 0 0 0 96 92" fill="none" stroke="url(#orvynOrbit)" strokeWidth="5" strokeLinecap="round" opacity="0.9" />
+        <circle cx="98" cy="40" r="7" fill="#34D399" />
+        <circle cx="27" cy="88" r="6" fill="#60A5FA" />
+      </svg>
+    </div>
+  );
+}
+
+function OrbitalBackground() {
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-500/20 blur-3xl" />
+      <div className="absolute right-0 top-56 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl" />
+      <div className="absolute left-[-12%] top-[18%] h-[520px] w-[820px] rotate-[-18deg] rounded-[50%] border border-emerald-300/10" />
+      <div className="absolute right-[-16%] top-[8%] h-[620px] w-[980px] rotate-[22deg] rounded-[50%] border border-blue-300/10" />
+      <div className="absolute bottom-[-20%] left-[18%] h-[520px] w-[900px] rotate-[8deg] rounded-[50%] border border-violet-300/10" />
+      <div className="absolute left-[12%] top-[30%] h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_24px_rgba(52,211,153,0.9)]" />
+      <div className="absolute right-[18%] top-[18%] h-3 w-3 rounded-full bg-blue-300 shadow-[0_0_28px_rgba(96,165,250,0.9)]" />
+      <div className="absolute bottom-[14%] left-[46%] h-3 w-3 rounded-full bg-violet-300 shadow-[0_0_28px_rgba(167,139,250,0.9)]" />
+    </div>
+  );
+}
+
 const starterHabits = [
   { name: "Levantarse a las 6", icon: "🌅", target: "Lun a vie", weekly_goal: 5 },
   { name: "Gym", icon: "🏋️", target: "3x por semana", weekly_goal: 3 },
@@ -254,7 +297,13 @@ function getCurrentBibleDay(plan) {
 }
 
 function Card({ children, className = "" }) {
-  return <div className={`rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/20 backdrop-blur ${className}`}>{children}</div>;
+  return (
+    <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0F172A]/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl ${className}`}>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/35 to-transparent" />
+      <div className="pointer-events-none absolute -right-14 -top-14 h-36 w-36 rounded-full bg-emerald-400/5 blur-2xl" />
+      <div className="relative">{children}</div>
+    </div>
+  );
 }
 
 function ProgressRing({ value = 0, label = "" }) {
@@ -309,8 +358,10 @@ function NavButton({ active, icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition ${
-        active ? "bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20" : "text-slate-400 hover:bg-white/10 hover:text-white"
+      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition active:scale-[0.98] ${
+        active
+          ? "bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25"
+          : "border border-white/5 bg-white/[0.03] text-slate-400 hover:border-white/10 hover:bg-white/10 hover:text-white"
       }`}
     >
       <Icon name={icon} size={18} />
@@ -431,19 +482,14 @@ function AuthScreen({ onAuth }) {
 
   return (
     <div className="min-h-screen bg-[#070A12] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-500/20 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl" />
-      </div>
+      <OrbitalBackground />
       <div className="relative mx-auto flex min-h-screen max-w-xl items-center justify-center p-5">
         <Card className="w-full">
           <div className="mb-8 flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/30">
-              <Icon name="sparkles" size={26} />
-            </div>
+            <OrbitMark size={58} />
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-white">Focus</h1>
-              <p className="text-sm text-slate-400">Tu sistema de hábitos, Biblia, tareas y finanzas.</p>
+              <h1 className="text-2xl font-black tracking-tight text-white">Orvyn</h1>
+              <p className="text-sm text-slate-400">Todo tiene su órbita.</p>
             </div>
           </div>
 
@@ -470,7 +516,7 @@ function AuthScreen({ onAuth }) {
               minLength={6}
               className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50"
             />
-            <button disabled={loading} className="rounded-2xl bg-emerald-400 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/20 disabled:opacity-60">
+            <button disabled={loading} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40 disabled:opacity-60">
               {loading ? "Cargando..." : mode === "login" ? "Entrar" : "Registrarme"}
             </button>
           </form>
@@ -994,21 +1040,15 @@ export default function SistemaEnfoqueApp() {
 
   return (
     <div className="min-h-screen bg-[#070A12] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-500/20 blur-3xl" />
-        <div className="absolute right-0 top-56 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl" />
-      </div>
+      <OrbitalBackground />
 
       <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col p-4 sm:p-6 lg:p-8">
-        <header className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 shadow-2xl shadow-black/20 backdrop-blur md:flex-row md:items-center md:justify-between">
+        <header className="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-[#0F172A]/70 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/30">
-              <Icon name="sparkles" size={26} />
-            </div>
+            <OrbitMark size={58} />
             <div>
-              <h1 className="text-xl font-black tracking-tight text-white sm:text-2xl">Focus</h1>
-              <p className="text-sm text-slate-400">Sincronizado como {user?.email}</p>
+              <h1 className="text-xl font-black tracking-tight text-white sm:text-2xl">Orvyn</h1>
+              <p className="text-sm text-slate-400">Todo tiene su órbita</p>
             </div>
           </div>
 
@@ -1020,10 +1060,10 @@ export default function SistemaEnfoqueApp() {
             )}
             <NavButton active={activeTab === "tareas"} icon="target" label="Tareas" onClick={() => setActiveTab("tareas")} />
             <NavButton active={activeTab === "finanzas"} icon="wallet" label="Finanzas" onClick={() => setActiveTab("finanzas")} />
-            <button type="button" onClick={toggleBibleModule} className="rounded-2xl px-4 py-3 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white">
+            <button type="button" onClick={toggleBibleModule} className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm font-bold text-slate-400 transition hover:border-white/10 hover:bg-white/10 hover:text-white">
               {showBible ? "Ocultar Biblia" : "Activar Biblia"}
             </button>
-            <button type="button" onClick={signOut} className="rounded-2xl px-4 py-3 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white">
+            <button type="button" onClick={signOut} className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm font-bold text-slate-400 transition hover:border-white/10 hover:bg-white/10 hover:text-white">
               Salir
             </button>
           </nav>
@@ -1048,7 +1088,6 @@ export default function SistemaEnfoqueApp() {
                 <div>
                   <p className="text-sm font-bold text-emerald-300">Hoy</p>
                   <h2 className="mt-2 text-3xl font-black tracking-tight text-white">Tu tablero diario</h2>
-                  <p className="mt-2 text-sm text-slate-400">Marcá lo importante y se guarda online para todos tus dispositivos.</p>
                 </div>
                 <ProgressRing value={todayPercent} label="cumplido" />
               </div>
@@ -1093,7 +1132,6 @@ export default function SistemaEnfoqueApp() {
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-black text-white">Ritmo semanal</h3>
-                    <p className="text-sm text-slate-400">Cantidad de hábitos cumplidos por día.</p>
                   </div>
                   <Icon name="bar" className="text-emerald-300" size={24} />
                 </div>
@@ -1121,7 +1159,6 @@ export default function SistemaEnfoqueApp() {
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-black text-white">Mapa de constancia</h3>
-                  <p className="text-sm text-slate-400">Cada cuadrado representa un día. Más intenso = más hábitos cumplidos.</p>
                 </div>
                 <Icon name="activity" className="text-emerald-300" size={24} />
               </div>
@@ -1144,13 +1181,12 @@ export default function SistemaEnfoqueApp() {
           <motion.main initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-2">
             <Card className="lg:col-span-2">
               <h2 className="text-2xl font-black text-white">Editar hábitos</h2>
-              <p className="mt-2 text-sm text-slate-400">Cada usuario puede crear, modificar o borrar sus propios hábitos.</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-[90px_1fr_1fr_130px_auto]">
                 <input value={habitForm.icon} onChange={(e) => setHabitForm((form) => ({ ...form, icon: e.target.value }))} placeholder="Icono" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
                 <input value={habitForm.name} onChange={(e) => setHabitForm((form) => ({ ...form, name: e.target.value }))} placeholder="Nombre del hábito" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
                 <input value={habitForm.target} onChange={(e) => setHabitForm((form) => ({ ...form, target: e.target.value }))} placeholder="Meta, ej: 3x por semana" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
                 <input type="number" min="1" value={habitForm.weeklyGoal} onChange={(e) => setHabitForm((form) => ({ ...form, weeklyGoal: e.target.value }))} placeholder="Meta semanal" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
-                <button type="button" onClick={addHabit} className="rounded-2xl bg-emerald-400 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/20">
+                <button type="button" onClick={addHabit} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
                   Agregar
                 </button>
               </div>
@@ -1161,7 +1197,6 @@ export default function SistemaEnfoqueApp() {
             ))}
             <Card className="lg:col-span-2">
               <h3 className="text-lg font-black text-white">Modo enfoque sugerido</h3>
-              <p className="mt-2 text-sm text-slate-400">Bloque corto para estudiar, leer o hacer devocional sin entrar en redes.</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 {["25 min", "45 min", "90 min"].map((time) => (
                   <button key={time} type="button" className="flex items-center justify-between rounded-3xl border border-white/10 bg-slate-950/40 p-4 hover:bg-white/10">
@@ -1207,7 +1242,7 @@ export default function SistemaEnfoqueApp() {
                   </h3>
                   <p className="mt-2 font-bold text-emerald-100">{currentBibleDay.reading}</p>
                   <p className="mt-3 text-sm leading-6 text-slate-300">{currentBibleDay.focus}</p>
-                  <button type="button" onClick={() => toggleBibleDay(currentBibleDay.id)} className="mt-5 w-full rounded-2xl bg-emerald-400 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/20">
+                  <button type="button" onClick={() => toggleBibleDay(currentBibleDay.id)} className="mt-5 w-full rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
                     {currentBibleDay.completed ? "Marcar como pendiente" : "Marcar lectura completa"}
                   </button>
                 </div>
@@ -1234,7 +1269,7 @@ export default function SistemaEnfoqueApp() {
                   <input value={bibleForm.title} onChange={(e) => setBibleForm((form) => ({ ...form, title: e.target.value }))} placeholder="Título del día, ej: Alabanza y confianza" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
                   <input value={bibleForm.reading} onChange={(e) => setBibleForm((form) => ({ ...form, reading: e.target.value }))} placeholder="Lectura, ej: Salmos 1–5" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
                   <textarea value={bibleForm.focus} onChange={(e) => setBibleForm((form) => ({ ...form, focus: e.target.value }))} placeholder="Enfoque/reflexión opcional" rows={3} className="resize-none rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
-                  <button type="button" onClick={addBibleReading} className="rounded-2xl bg-emerald-400 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/20">
+                  <button type="button" onClick={addBibleReading} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
                     Agregar al plan
                   </button>
                 </div>
@@ -1313,10 +1348,9 @@ export default function SistemaEnfoqueApp() {
           <motion.main initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="grid gap-5 lg:grid-cols-12">
             <Card className="lg:col-span-5">
               <h2 className="text-2xl font-black text-white">Tareas de hoy</h2>
-              <p className="mt-2 text-sm text-slate-400">Pequeñas acciones para que la rutina no quede en deseo.</p>
               <div className="mt-5 flex gap-2">
                 <input value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addTask()} placeholder="Ej: ordenar escritorio" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/50" />
-                <button type="button" onClick={addTask} className="rounded-2xl bg-emerald-400 px-4 font-black text-slate-950">
+                <button type="button" onClick={addTask} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
                   <Icon name="plus" />
                 </button>
               </div>
@@ -1359,7 +1393,6 @@ export default function SistemaEnfoqueApp() {
 
             <Card className="lg:col-span-5">
               <h2 className="text-2xl font-black text-white">Cargar movimiento</h2>
-              <p className="mt-2 text-sm text-slate-400">Anotá ingresos y gastos apenas pasen.</p>
               <div className="mt-5 grid gap-3">
                 <select value={financeForm.type} onChange={(e) => setFinanceForm((f) => ({ ...f, type: e.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none">
                   <option>Gasto</option>
@@ -1370,7 +1403,7 @@ export default function SistemaEnfoqueApp() {
                 </select>
                 <input value={financeForm.description} onChange={(e) => setFinanceForm((f) => ({ ...f, description: e.target.value }))} placeholder="Descripción" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" />
                 <input value={financeForm.amount} onChange={(e) => setFinanceForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Monto" type="number" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" />
-                <button type="button" onClick={addTransaction} className="rounded-2xl bg-emerald-400 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/20">
+                <button type="button" onClick={addTransaction} className="rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-500 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40">
                   Agregar movimiento
                 </button>
                 <button type="button" onClick={clearFinances} className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/10">
@@ -1381,7 +1414,6 @@ export default function SistemaEnfoqueApp() {
 
             <Card className="lg:col-span-7">
               <h3 className="text-lg font-black text-white">Gastos por categoría</h3>
-              <p className="mt-1 text-sm text-slate-400">Para ver rápido por dónde se va la plata.</p>
               <div className="mt-4 h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={financeByCategory}>
