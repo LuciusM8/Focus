@@ -13,9 +13,9 @@ export default defineConfig({
         enabled: true,
       },
       manifest: {
-        name: "Sistema de Enfoque",
-        short_name: "Enfoque",
-        description: "Hábitos, Biblia, tareas y finanzas en una sola app.",
+        name: "Orvyn",
+        short_name: "Orvyn",
+        description: "Todo tiene su órbita: hábitos, tareas y finanzas en un solo lugar.",
         theme_color: "#070A12",
         background_color: "#070A12",
         display: "standalone",
