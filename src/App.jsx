@@ -99,18 +99,9 @@ const defaultHabits = [
   },
 ];
 
-const defaultTasks = [
-  { id: "t1", title: "Preparar la mochila del gym", done: false, tag: "Gym" },
-  { id: "t2", title: "Leer 10 páginas", done: true, tag: "Estudio" },
-  { id: "t3", title: "Revisar gastos del día", done: false, tag: "Finanzas" },
-];
+const defaultTasks = [];
 
-const defaultTransactions = [
-  { id: "f1", date: todayKey(), type: "Ingreso", category: "Trabajo", description: "Ingreso ejemplo", amount: 250000 },
-  { id: "f2", date: todayKey(), type: "Gasto", category: "Comida", description: "Supermercado", amount: 42000 },
-  { id: "f3", date: todayKey(), type: "Gasto", category: "Transporte", description: "Nafta / bondi", amount: 18000 },
-  { id: "f4", date: todayKey(), type: "Gasto", category: "Ocio", description: "Salida", amount: 22000 },
-];
+const defaultTransactions = [];
 
 const defaultBiblePlan = [
   {
@@ -625,6 +616,14 @@ export default function SistemaEnfoqueApp() {
     setBiblePlanName("Mi nuevo plan bíblico");
   };
 
+  const clearFinances = () => {
+    setTransactions([]);
+  };
+
+  const clearTasks = () => {
+    setTasks([]);
+  };
+
   const categories = ["Comida", "Transporte", "Ocio", "Salud", "Estudio", "Iglesia", "Ahorro", "Trabajo", "Otros"];
 
   return (
@@ -946,6 +945,9 @@ export default function SistemaEnfoqueApp() {
                   <Icon name="plus" />
                 </button>
               </div>
+              <button type="button" onClick={clearTasks} className="mt-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/10">
+                Borrar todas las tareas
+              </button>
             </Card>
 
             <Card className="lg:col-span-7">
@@ -1000,6 +1002,9 @@ export default function SistemaEnfoqueApp() {
                 <input value={financeForm.amount} onChange={(e) => setFinanceForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Monto" type="number" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" />
                 <button type="button" onClick={addTransaction} className="rounded-2xl bg-emerald-400 px-4 py-3 font-black text-slate-950 shadow-lg shadow-emerald-500/20">
                   Agregar movimiento
+                </button>
+                <button type="button" onClick={clearFinances} className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/10">
+                  Borrar movimientos
                 </button>
               </div>
             </Card>
